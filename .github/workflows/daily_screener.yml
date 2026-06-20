@@ -1,0 +1,51 @@
+name: Daily Taiwan Stock Screener
+
+# Runs after the TWSE end-of-day stats are finalized.
+# 09:00 UTC == 17:00 Asia/Taipei, Monday–Friday.
+on:
+  schedule:
+    - cron: "0 9 * * 1-5"
+  workflow_dispatch: {}        # allow manual runs from the Actions tab
+
+# Required so the git-scraping step can push the updated JSON caches back.
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-screener
+  cancel-in-progress: false
+
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run screener
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python -m src.main
+
+      - name: Commit updated state (git scraping)
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/*.json
+          if git diff --staged --quiet; then
+            echo "No state changes to commit."
+          else
+            git commit -m "Update market state $(date -u +'%Y-%m-%d') [skip ci]"
+            git push
+          fi
