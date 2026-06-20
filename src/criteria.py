@@ -156,8 +156,11 @@ def watchlist_new_highs(
 # --------------------------------------------------------------------------- #
 def margin_index_growth_ratio(stats: dict[str, list]) -> CriterionResult:
     key, name = "c6_margin_ratio", "融資增減比÷指數增減比"
-    margin = _tail(stats.get("margin_balance", []), config.MARGIN_PERIOD)
-    twii = _tail(stats.get("twii_close", []), config.MARGIN_PERIOD)
+    # Drop None/NaN so a stray missing close can't poison the % change endpoints.
+    margin = [x for x in _tail(stats.get("margin_balance", []), config.MARGIN_PERIOD)
+              if x is not None and x == x]
+    twii = [x for x in _tail(stats.get("twii_close", []), config.MARGIN_PERIOD)
+            if x is not None and x == x]
     if len(margin) < 2 or len(twii) < 2:
         return CriterionResult(key, name, None, False, "資料不足")
 

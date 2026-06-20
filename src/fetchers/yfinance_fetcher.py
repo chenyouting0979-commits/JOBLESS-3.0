@@ -21,7 +21,12 @@ def _download(ticker: str, period: str = "1y", interval: str = "1d") -> pd.DataF
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
 
-    return df.dropna(how="all")
+    df = df.dropna(how="all")
+    # Yahoo's most recent bar is sometimes provisional with a NaN Close; drop those
+    # rows so the latest bar always carries a valid close (avoids 'nan' downstream).
+    if "Close" in df.columns:
+        df = df[df["Close"].notna()]
+    return df
 
 
 def fetch_twii_history(period: str = "1y") -> pd.DataFrame:
